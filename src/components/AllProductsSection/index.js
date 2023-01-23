@@ -31,6 +31,13 @@ const categoryOptions = [
   },
 ]
 
+const apiStatusConstants = {
+  initial: 'INITIAL',
+  inProgress: 'IN_PROGRESS',
+  success: 'SUCCESS',
+  failure: 'FAILURE',
+}
+
 const sortbyOptions = [
   {
     optionId: 'PRICE_HIGH',
@@ -68,8 +75,12 @@ const ratingsList = [
 class AllProductsSection extends Component {
   state = {
     productsList: [],
-    isLoading: false,
+
     activeOptionId: sortbyOptions[0].optionId,
+    apiStatus: '',
+    activeCategoryId: '',
+    activeRatingId: '',
+    searchInput: '',
   }
 
   componentDidMount() {
@@ -78,14 +89,15 @@ class AllProductsSection extends Component {
 
   getProducts = async () => {
     this.setState({
-      isLoading: true,
+      apiStatus: apiStatusConstants.inProgress,
     })
     const jwtToken = Cookies.get('jwt_token')
 
     // TODO: Update the code to get products with filters applied
+    const {activeCategoryId, searchInput, activeRatingId} = this.state
 
     const {activeOptionId} = this.state
-    const apiUrl = `https://apis.ccbp.in/products?sort_by=${activeOptionId}`
+    const apiUrl = `https://apis.ccbp.in/products?sort_by=${activeOptionId}&category=${activeCategoryId}&title_search=${searchInput}&rating=${activeRatingId}`
     const options = {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -105,7 +117,11 @@ class AllProductsSection extends Component {
       }))
       this.setState({
         productsList: updatedData,
-        isLoading: false,
+        apiStatus: apiStatusConstants.success,
+      })
+    } else {
+      this.setState({
+        apiStatus: apiStatusConstants.failure,
       })
     }
   }
@@ -116,9 +132,10 @@ class AllProductsSection extends Component {
 
   renderProductsList = () => {
     const {productsList, activeOptionId} = this.state
-
+    const showProducts = productsList.length > 0
+    console.log(showProducts)
     // TODO: Add No Products View
-    return (
+    return showProducts ? (
       <div className="all-products-container">
         <ProductsHeader
           activeOptionId={activeOptionId}
@@ -131,6 +148,13 @@ class AllProductsSection extends Component {
           ))}
         </ul>
       </div>
+    ) : (
+      <div>
+        <img
+          src="https://assets.ccbp.in/frontend/react-js/nxt-trendz/nxt-trendz-no-products-view.png"
+          alt="no product"
+        />
+      </div>
     )
   }
 
@@ -141,16 +165,60 @@ class AllProductsSection extends Component {
   )
 
   // TODO: Add failure view
+  renderFailure = () => (
+    <img
+      src="https://assets.ccbp.in/frontend/react-js/nxt-trendz/nxt-trendz-products-error-view.png"
+      alt="products failure"
+    />
+  )
+
+  renderApiStatus = () => {
+    const {apiStatus} = this.state
+
+    switch (apiStatus) {
+      case apiStatusConstants.success:
+        return this.renderProductsList()
+      case apiStatusConstants.failure:
+        return this.renderFailure()
+      case apiStatusConstants.inProgress:
+        return this.renderLoader()
+      default:
+        return null
+    }
+  }
+
+  changeCategory = id => {
+    this.setState({activeCategoryId: id}, this.getProducts)
+  }
+
+  changeRating = id => {
+    this.setState({activeRatingId: id}, this.getProducts)
+  }
+
+  enterSearchInput = () => this.getProducts()
+
+  changeInput = searchInput => {
+    this.setState({searchInput})
+  }
 
   render() {
-    const {isLoading} = this.state
+    const {searchInput, activeCategoryId, activeRatingId} = this.state
 
     return (
       <div className="all-products-section">
         {/* TODO: Update the below element */}
-        <FiltersGroup />
-
-        {isLoading ? this.renderLoader() : this.renderProductsList()}
+        <FiltersGroup
+          categoryOptions={categoryOptions}
+          ratingsList={ratingsList}
+          searchInput={searchInput}
+          activeCategoryId={activeCategoryId}
+          activeRatingId={activeRatingId}
+          changeRating={this.changeRating}
+          changeCategory={this.changeCategory}
+          changeInput={this.changeInput}
+          enterSearchInput={this.enterSearchInput}
+        />
+        {this.renderApiStatus()}
       </div>
     )
   }
